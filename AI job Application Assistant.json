@@ -1,0 +1,423 @@
+{
+  "name": "AI job Application Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5de969cb-703e-4e14-9d0d-f0a27a658968",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d40a5966-1a15-41b8-90f5-8c912bb17205",
+      "name": "Webhook",
+      "webhookId": "5de969cb-703e-4e14-9d0d-f0a27a658968"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        368
+      ],
+      "id": "bd95bf63-c2ed-4400-8e9c-9490798226ca",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "LmvUZ1jS2jg1ssU2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        256
+      ],
+      "id": "b3b663aa-a861-495f-8f05-29ec651eb4c5",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "LmvUZ1jS2jg1ssU2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1200,
+        16
+      ],
+      "id": "8ff06469-7d60-491d-979d-6a1e2ddc927e",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Resume Analysis Agent.\n\nAnalyze the candidate's resume carefully.\n\nExtract the following information:\n\n1. Skills\n2. Technical Skills\n3. Education\n4. Work Experience\n5. Projects\n6. Certifications\n\nDo not invent any information that is not present in the resume.\n\nResume Texxt:\n{{ $json.body.resume_text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        832,
+        0
+      ],
+      "id": "711b2970-a4f8-4aa0-87bd-1539e54df6c3",
+      "name": "Resume analyzer"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Job Description Analysis Agent.\n\nAnalyze the job description provided below.\n\nExtract:\n1. Job Title\n2. Required Skills\n3. Preferred Skills\n4. Education Requirements\n5. Experience Requirements\n6. Main Responsibilities\n\nReturn the information in a clear and structured format.\n\nDo not invent information that is not present in the job description.\n\nJob Description:\n{{ $('Webhook').item.json.body.job_description }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        432,
+        288
+      ],
+      "id": "5ec7097f-fe31-485d-839c-af8b2076db3f",
+      "name": "Job Description Analyzer"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Job Matching Agent.\n\nYour task is to compare a candidate's resume information with a job description.\n\nAnalyze both carefully and provide:\n\n1. Overall Match Score out of 100\n2. Matching Skills\n3. Missing Skills\n4. Education Match\n5. Experience Match\n6. Final Recommendation\n\nGive a clear and concise explanation for the score.\n\nDo not invent information.\n\nCandidate Resume:\n{{ $('Resume analyzer').item.json.output }}\n\nJob Description:\n{{ $('Job Description Analyzer').item.json.output }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        272,
+        64
+      ],
+      "id": "c483ad97-0278-418d-b5d6-13055ac37090",
+      "name": "Job Matcher"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        656,
+        112
+      ],
+      "id": "ee0fecdf-5aae-4d95-815b-86bafefa2a15",
+      "name": "Google Gemini Chat Model6",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "LmvUZ1jS2jg1ssU2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "62412c12-6aa2-420f-b0d2-75182d121c86",
+              "leftValue": "={{ Number($('Job Matcher').item.json.output.match(/(?:Overall Match Score|Match Score)[^0-9]*(\\d+)/i)?.[1] || 0) }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        784,
+        208
+      ],
+      "id": "a32c6ed4-1e3b-4bf1-b6fe-18ba801792c2",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Professional Cover Letter Generator.\n\nThe candidate's job match score is 70 or above, so generate a personalized cover letter.\n\nIMPORTANT RULES:\n- Do not invent any skills, experience, education, projects, companies, certifications, or achievements.\n- Use only information present in the resume.\n- Tailor the cover letter to the exact job description.\n- Mention the company name and job title when available.\n- Keep the cover letter professional and concise.\n- Do not mention the match score inside the cover letter.\n\nAfter generating the cover letter, return the COMPLETE result in the following format:\n\nJOB MATCH ANALYSIS\n\n{{ $('Job Matcher').item.json.output }}\n\nCOVER LETTER\n\n[Generate the personalized cover letter here]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1104,
+        208
+      ],
+      "id": "37db4f9e-dba5-4ab6-87fd-a273c799965a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        976,
+        416
+      ],
+      "id": "fb6fdaa9-169b-4818-a314-6bf25fa6313d",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "LmvUZ1jS2jg1ssU2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Job Match Result Agent.\n\nThe candidate's match score is below 70.\n\nReturn the complete job matching analysis provided below.\n\nDo NOT generate a cover letter.\nDo NOT modify the match score.\nDo NOT invent or add any information.\n\nReturn:\n\n1. Overall Match Score\n2. Matching Skills\n3. Missing Skills\n4. Education Match\n5. Experience Match\n6. Final Recommendation\n\nJOB MATCH ANALYSIS:\n\n{{ $('Job Matcher').item.json.output }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1408,
+        400
+      ],
+      "id": "aa1f9479-0493-432c-913d-2eddb511b049",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1184,
+        512
+      ],
+      "id": "3ea28b4e-f936-410d-8284-83026df90404",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "LmvUZ1jS2jg1ssU2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1472,
+        208
+      ],
+      "id": "431cca2b-f7f4-45bc-be68-383465f2ffa3",
+      "name": "Merge1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Resume analyzer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Job Description Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Job Description Analyzer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Job Matcher",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Job Matcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume analyzer": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job Description Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Job Matcher": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Resume analyzer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1faa6777-656a-470b-82a3-ad5fd60efb1a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "76200670aa3ae62a85270ea77e64ca79ec2b3f1983166f261ce4defc7d62c3dc"
+  },
+  "nodeGroups": [],
+  "id": "IUBUFNdMmk5W9T38",
+  "tags": []
+}
